@@ -1,4 +1,4 @@
-const Configuration = {
+let Configuration = {
     PIXELS_PER_UNIT_LENGTH: 10,
     FORCE_CONSTANT: 25000,
     SLEEP_TIME: 22,
@@ -6,9 +6,9 @@ const Configuration = {
     MINIMUM_PARTICLE_charge: 10,
     MAXIMUM_PARTICLE_charge: 30,
     MAXIMUM_INITIAL_VELOCITY: 1,
-    DEFAULT_NUMBER_OF_PARTICLES: 10
+    DEFAULT_NUMBER_OF_PARTICLES: 20
 };
- 
+
 class Vector {
     constructor(x, y) {
         this.x = x;
@@ -48,7 +48,6 @@ class Particle {
     getForceVector(other) {
         // A particle exerts no force on itself.
         if (this == other) return new Vector(0, 0);
-
 
         let length = Configuration.FORCE_CONSTANT * this.charge * other.charge / this.getDistance(other) ** 2;
         let angle = Math.atan2(this.position.y - other.position.y, this.position.x - other.position.x);
@@ -101,8 +100,6 @@ class SimulationEngine {
     }
 
     step() {
-        // this.computePlayerForceVectors();
-        this.updatePlayerVelocities(this.computePlayerForceVectors());
         this.updateParticleVelocities(this.computeForceVectors());
         this.moveParticles();
         this.resolveBorderCollisions();
@@ -113,12 +110,10 @@ class SimulationEngine {
         return this.particles.map(particle => {
             let vector = this.particles.reduce(
                 (vector, other) => {
-                    // console.log(this.mouseCursor)
                     return vector.add(particle.getForceVector(other));
                 },
                 new Vector(0, 0)
             );
-            // console.log(particle)
             return [particle, vector];
             
         });
@@ -131,12 +126,10 @@ class SimulationEngine {
             },
             new Vector(0, 0)
         );
-        // console.log(this.mouseCursor)
         return Array.from([this.mouseCursor, vector]);
     }
 
     updateParticleVelocities(particleVectorMap) {
-        // console.log(particleVectorMap)
         particleVectorMap.forEach(([particle, vector]) => {
             vector = vector.multiply(1 / particle.charge);
             particle.velocity.x += vector.x * this.timeStep;
@@ -144,17 +137,7 @@ class SimulationEngine {
         });
     }
 
-    updatePlayerVelocities(particleVectorMap) {
-        // console.log(particleVectorMap)
-        // particleVectorMap.forEach(([particle, vector]) => {
-        //     vector = vector.multiply(1 / particle.charge);
-        //     particle.velocity.x += vector.x * this.timeStep;
-        //     particle.velocity.y += vector.y * this.timeStep;
-        // });
-    }
-
     moveParticles() {
-        
         this.particles.forEach(particle => {
             this.mouseCursor.velocity.x = 0;
             this.mouseCursor.velocity.y = 0;
@@ -214,9 +197,8 @@ class SimulationEngine {
     }
 
     render() {
-        this.context.fillStyle = 'white';
+        this.context.fillStyle = '#353535';
         this.context.fillRect(0, 0, this.canvas.width, this.canvas.height);
-
 
         this.particles.forEach(particle => particle.render(this.context));
 
@@ -227,8 +209,8 @@ class SimulationEngine {
 }
 
 function getRandomColor() {
-    const letters = "0123456789abcdef";
-    let color = "#";
+    const letters = '0123456789abcdef';
+    let color = '#';
 
     for (let i = 0; i < 6; ++i) {
         color += letters[Math.floor(Math.random() * 16)];
@@ -239,22 +221,13 @@ function getRandomColor() {
 function createRandomParticle(canvas) {
     let charge = 10;
     let radius = charge / Configuration.PIXELS_PER_UNIT_LENGTH;
-    let particle = new Particle(charge, radius, 'red');
+    let particle = new Particle(charge, radius, getRandomColor());
     particle.position.x = canvas.width * Math.random();
     particle.position.y = canvas.height * Math.random();
     particle.velocity.x = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
     particle.velocity.y = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
     
     return particle;
-}
-
-function createPlayerParticle() {
-    let player = new Particle(10, 2, 'blue');
-    player.position.x = 20;
-    player.position.y = 20;
-    player.velocity.x = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
-    player.velocity.y = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
-    return player;
 }
 
 function createRandomParticles(total, canvas) {
@@ -265,22 +238,41 @@ function createRandomParticles(total, canvas) {
     return particles;
 }
 
-const pluck = (arr, key) => arr.map(item => item[key]);
+function inputManager() {
+    let input = document.querySelector('input');
 
+    input.addEventListener('keyup', function (event) {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            document.querySelector('button').click();
+        }
+    });
+
+    document.querySelector('button').onclick = function saveParticleAmount() {
+        localStorage.setItem(Configuration.DEFAULT_NUMBER_OF_PARTICLES, Number(input.value));
+
+        location.reload();
+    }
+}
+
+const pluck = (arr, key) => arr.map(item => item[key]);
 
 function main() {
     let canvas = document.querySelector('canvas');
-    canvas.width = innerWidth
-    canvas.height = innerHeight
+    canvas.width = innerWidth;
+    canvas.height = innerHeight;
 
-    let particles = createRandomParticles(Configuration.DEFAULT_NUMBER_OF_PARTICLES, canvas);
+    inputManager();
+    
+    let particles;
+    const localParticleAmount = localStorage.getItem(Configuration.DEFAULT_NUMBER_OF_PARTICLES);
+    
+    if (localParticleAmount) {
+        particles = createRandomParticles(localParticleAmount, canvas);
+    } else { particles = createRandomParticles(Configuration.       DEFAULT_NUMBER_OF_PARTICLES, canvas)}
 
-    // let mouseCursor = createPlayerParticle();
     let mouseCursor = particles[0];
-
-
-    // console.log(particles[0])
-    // console.log(mouseCursor)
+    mouseCursor.color = 'black';
 
     const actions = {
         setMousePosition(x, y) {Object.assign(mouseCursor), {x, y}}
@@ -293,8 +285,6 @@ function main() {
         )
     });
 
-    
-
     let engine = new SimulationEngine(
         canvas,
         particles,
@@ -302,7 +292,6 @@ function main() {
         Configuration.SLEEP_TIME,
         mouseCursor
     );
-
 
     engine.start();
     let started = true;
@@ -321,23 +310,3 @@ function main() {
 }
 
 main();
-
-
-
-
-
-
-
-
-// function cursor(e) {
-//     let mouseCursor = document.querySelector('.cursor');
-
-//     mouseCursor.style.top = e.pageY + 'px';
-//     mouseCursor.style.left = e.pageX + 'px';
-//     mouseCursor = new Particle(20, 20, 'green');
-//     mouseCursor.position.x = e.pageX;
-//     mouseCursor.position.y = e.pageY;
-//     mouseCursor.velocity.x = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
-//     mouseCursor.velocity.y = Configuration.MAXIMUM_INITIAL_VELOCITY * Math.random();
-
-// }
